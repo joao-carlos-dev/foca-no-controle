@@ -1,0 +1,132 @@
+@import "tailwindcss" source(none);
+@source "../src";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary-glow: var(--primary-glow);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-savings: var(--savings);
+  --color-savings-foreground: var(--savings-foreground);
+  --color-income: var(--income);
+  --color-income-foreground: var(--income-foreground);
+  --color-warning: var(--warning);
+}
+
+:root {
+  /* User-selected Pantone palette; financial statuses retain semantic colors. */
+  --anthracite: oklch(0.2799 0.0092 294.97);
+  --volcanic-glass: oklch(0.4795 0.0119 335.73);
+  --deep-taupe: oklch(0.5257 0.0318 29.18);
+  --plaza-taupe: oklch(0.7180 0.0266 75.18);
+  --radius: 0.875rem;
+  --background: var(--anthracite);
+  --foreground: oklch(0.96 0.008 75);
+  --card: oklch(0.32 0.01 335);
+  --card-foreground: var(--foreground);
+  --popover: oklch(0.34 0.011 335);
+  --popover-foreground: var(--foreground);
+  --primary: var(--plaza-taupe);
+  --primary-foreground: var(--anthracite);
+  --primary-glow: oklch(0.8 0.025 75);
+  --secondary: var(--volcanic-glass);
+  --secondary-foreground: var(--foreground);
+  --muted: oklch(0.38 0.012 335);
+  --muted-foreground: oklch(0.77 0.016 75);
+  --accent: var(--deep-taupe);
+  --accent-foreground: var(--foreground);
+  --destructive: oklch(0.65 0.22 22);
+  --destructive-foreground: oklch(0.98 0.01 255);
+  --border: var(--volcanic-glass);
+  --input: oklch(0.42 0.012 335);
+  --ring: var(--plaza-taupe);
+  --savings: oklch(0.72 0.16 220);
+  --savings-foreground: oklch(0.18 0.02 260);
+  --income: oklch(0.8 0.18 145);
+  --income-foreground: oklch(0.18 0.02 260);
+  --warning: oklch(0.78 0.17 75);
+  --gradient-primary: linear-gradient(135deg, var(--plaza-taupe), var(--deep-taupe));
+  --gradient-card: linear-gradient(160deg, var(--card), var(--anthracite));
+  --gradient-glow: linear-gradient(160deg, color-mix(in oklch, var(--deep-taupe) 12%, transparent), transparent 60%);
+  --shadow-elegant: 0 10px 40px -12px oklch(0 0 0 / 0.5);
+  --shadow-glow: 0 0 40px color-mix(in oklch, var(--plaza-taupe) 20%, transparent);
+  --chart-1: var(--plaza-taupe);
+  --chart-2: oklch(0.66 0.04 29);
+  --chart-3: oklch(0.65 0.015 335);
+  --chart-4: oklch(0.85 0.025 75);
+  --chart-5: var(--deep-taupe);
+  --chart-6: oklch(0.76 0.035 29);
+  --chart-7: var(--volcanic-glass);
+  --chart-8: oklch(0.58 0.03 75);
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    background-image: var(--gradient-glow);
+    background-attachment: fixed;
+    min-height: 100vh;
+    font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  }
+}
+
+.annual-bar-chart .recharts-bar-rectangle {
+  transform-box: fill-box;
+  transform-origin: center bottom;
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+.annual-bar-chart .recharts-bar-rectangle:hover {
+  transform: scale(1.06, 1.04);
+  filter: brightness(1.12);
+}
+
+.category-pie-chart .recharts-sector {
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 160ms ease, filter 160ms ease;
+}
+
+.category-pie-chart .recharts-sector:hover {
+  transform: scale(1.045);
+  filter: brightness(1.12);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .annual-bar-chart .recharts-bar-rectangle {
+    transition: none;
+  }
+
+  .category-pie-chart .recharts-sector {
+    transition: none;
+  }
+}
