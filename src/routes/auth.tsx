@@ -1,19 +1,63 @@
-import { useState } from "react"
+import { useState, type SetStateAction } from "react"
 import { Button } from "../components/ui/button"
 import { Input } from "../components/ui/input"
+import { supabase } from "../integrations/supabase/client"
 
 type AuthMode = "login" | "register" | "forgot"
 
 export default function Auth() {
   const [mode, setMode] = useState<AuthMode>("login")
-  const [fullName, setFullName] = useState("")
+  
+  // Estados Base
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  
+  // Estados de Cadastro
+  const [fullName, setFullName] = useState("")
+  const [phone, setPhone] = useState("")
+  const [notifyBefore, setNotifyBefore] = useState(true)
+  const [notifyOnDay, setNotifyOnDay] = useState(true)
+  const [notifyOverdue, setNotifyOverdue] = useState(true)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Deixamos preparado para quando conectarmos o Supabase mais para frente
-    console.log({ mode, fullName, email, password })
+    setLoading(true)
+
+    try {
+      if (mode === "register") {
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: { 
+              full_name: fullName,
+              phone: phone,
+              notify_before: notifyBefore,
+              notify_on_day: notifyOnDay,
+              notify_overdue: notifyOverdue
+            }
+          }
+        })
+        if (error) throw error
+        alert("Conta criada com sucesso! Faça login para continuar.")
+        setMode("login")
+        
+      } else if (mode === "login") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password })
+        if (error) throw error
+        
+      } else if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email)
+        if (error) throw error
+        alert("Instruções de recuperação enviadas para o seu e-mail.")
+      }
+    } catch (error: any) {
+      alert(error.message || "Ocorreu um erro.")
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (
@@ -31,17 +75,32 @@ export default function Auth() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+          
+          {/* Campos exclusivos do Cadastro */}
           {mode === "register" && (
-            <div className="space-y-2">
-              <label className="text-sm font-medium block text-left">Nome completo</label>
-              <Input
-                type="text"
-                placeholder="João Carlos"
-                value={fullName}
-                onChange={(e) => setFullName(e.target.value)}
-                required
-              />
-            </div>
+            <>
+              <div className="space-y-2">
+                <label className="text-sm font-medium block text-left">Nome completo</label>
+                <Input
+                  type="text"
+                  placeholder="João Carlos"
+                  value={fullName}
+                  onChange={(e: { target: { value: SetStateAction<string> } }) => setFullName(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium block text-left">WhatsApp / Telefone</label>
+                <Input
+                  type="tel"
+                  placeholder="(00) 00000-0000"
+                  value={phone}
+                  onChange={(e: { target: { value: SetStateAction<string> } }) => setPhone(e.target.value)}
+                  required
+                />
+              </div>
+            </>
           )}
 
           <div className="space-y-2">
@@ -50,7 +109,7 @@ export default function Auth() {
               type="email"
               placeholder="seu@email.com"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={(e: { target: { value: SetStateAction<string> } }) => setEmail(e.target.value)}
               required
             />
           </div>
@@ -62,17 +121,54 @@ export default function Auth() {
                 type="password"
                 placeholder="••••••••"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e: { target: { value: SetStateAction<string> } }) => setPassword(e.target.value)}
                 minLength={6}
                 required
               />
             </div>
           )}
 
-          <Button type="submit" className="w-full mt-6 cursor-pointer">
-            {mode === "login" && "Entrar"}
-            {mode === "register" && "Criar conta"}
-            {mode === "forgot" && "Enviar link de recuperação"}
+          {/* Preferências de Notificação - Exclusivas do Cadastro */}
+          {mode === "register" && (
+            <div className="space-y-3 pt-2">
+              <label className="text-sm font-medium block text-left">Preferências de Notificação</label>
+              <div className="space-y-2 bg-background/50 p-4 rounded-xl border border-border">
+                <label className="flex items-center gap-3 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                  <input 
+                    type="checkbox" 
+                    checked={notifyBefore} 
+                    onChange={(e) => setNotifyBefore(e.target.checked)} 
+                    className="w-4 h-4 rounded border-border bg-background accent-primary" 
+                  />
+                  1 dia antes do vencimento
+                </label>
+                <label className="flex items-center gap-3 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                  <input 
+                    type="checkbox" 
+                    checked={notifyOnDay} 
+                    onChange={(e) => setNotifyOnDay(e.target.checked)} 
+                    className="w-4 h-4 rounded border-border bg-background accent-primary" 
+                  />
+                  No dia do vencimento
+                </label>
+                <label className="flex items-center gap-3 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors">
+                  <input 
+                    type="checkbox" 
+                    checked={notifyOverdue} 
+                    onChange={(e) => setNotifyOverdue(e.target.checked)} 
+                    className="w-4 h-4 rounded border-border bg-background accent-primary" 
+                  />
+                  Quando a conta já venceu
+                </label>
+              </div>
+            </div>
+          )}
+
+          <Button type="submit" className="w-full mt-6 cursor-pointer" disabled={loading}>
+            {loading ? "A processar..." : (
+              mode === "login" ? "Entrar" : 
+              mode === "register" ? "Criar conta" : "Enviar link de recuperação"
+            )}
           </Button>
         </form>
 

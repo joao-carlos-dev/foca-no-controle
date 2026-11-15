@@ -1,50 +1,77 @@
-import { ArrowDownCircle, ArrowUpCircle, CreditCard, Wallet } from "lucide-react";
+import { TrendingUp, TrendingDown, PiggyBank, Wallet, Landmark, Receipt, HandCoins } from "lucide-react";
 import { formatCurrency } from "../../lib/format";
 
 interface SummaryCardsProps {
   income: number;
   expenses: number;
-  debts: number;
+  saved: number;
+  balance: number;
+  debtsTotal: number;
+  debtsPaid: number;
+  receivables: number;
 }
 
-export function SummaryCards({ income, expenses, debts }: SummaryCardsProps) {
-  const balance = income - expenses - debts;
-
+export function SummaryCards({ income, expenses, saved, balance, debtsTotal, debtsPaid, receivables }: SummaryCardsProps) {
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-      <div className="bg-card p-6 rounded-xl border border-border shadow-(--shadow-elegant)">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-muted-foreground">Receitas</h3>
-          <ArrowUpCircle className="w-5 h-5 text-income" />
+      {/* Linha 1 */}
+      <div className="bg-card p-5 rounded-2xl border border-border shadow-(--shadow-elegant)">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Receitas</h3>
+          <TrendingUp className="w-4 h-4 text-income" />
         </div>
         <p className="text-2xl font-bold text-foreground">{formatCurrency(income)}</p>
       </div>
 
-      <div className="bg-card p-6 rounded-xl border border-border shadow-(--shadow-elegant)">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-muted-foreground">Despesas</h3>
-          <ArrowDownCircle className="w-5 h-5 text-destructive" />
+      <div className="bg-card p-5 rounded-2xl border border-border shadow-(--shadow-elegant)">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Gastos</h3>
+          <TrendingDown className="w-4 h-4 text-destructive" />
         </div>
         <p className="text-2xl font-bold text-foreground">{formatCurrency(expenses)}</p>
       </div>
 
-      <div className="bg-card p-6 rounded-xl border border-border shadow-(--shadow-elegant)">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-sm font-medium text-muted-foreground">Dívidas</h3>
-          <CreditCard className="w-5 h-5 text-warning" />
+      <div className="bg-card p-5 rounded-2xl border border-border shadow-(--shadow-elegant)">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Poupado</h3>
+          <PiggyBank className="w-4 h-4 text-[#38bdf8]" />
         </div>
-        <p className="text-2xl font-bold text-foreground">{formatCurrency(debts)}</p>
+        <p className="text-2xl font-bold text-foreground">{formatCurrency(saved)}</p>
       </div>
 
-      <div className="bg-card p-6 rounded-xl border border-border shadow-(--shadow-elegant) relative overflow-hidden">
-        <div className="absolute inset-0 bg-(image:--gradient-glow) opacity-10 pointer-events-none" />
-        <div className="flex items-center justify-between mb-4 relative z-10">
-          <h3 className="text-sm font-medium text-muted-foreground">Saldo do Mês</h3>
-          <Wallet className="w-5 h-5 text-primary" />
+      <div className="bg-card p-5 rounded-2xl border border-border shadow-(--shadow-elegant)">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saldo do Mês</h3>
+          <Wallet className="w-4 h-4 text-muted-foreground" />
         </div>
-        <p className={`text-2xl font-bold relative z-10 ${balance >= 0 ? 'text-income' : 'text-destructive'}`}>
+        <p className={`text-2xl font-bold ${balance >= 0 ? 'text-foreground' : 'text-destructive'}`}>
           {formatCurrency(balance)}
         </p>
+      </div>
+
+      {/* Linha 2 */}
+      <div className="bg-card p-5 rounded-2xl border border-border shadow-(--shadow-elegant)">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-warning">Dívidas</h3>
+          <Landmark className="w-4 h-4 text-warning" />
+        </div>
+        <p className="text-2xl font-bold text-foreground">{formatCurrency(debtsTotal)}</p>
+      </div>
+
+      <div className="bg-card p-5 rounded-2xl border border-border shadow-(--shadow-elegant)">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Pago em Dívidas</h3>
+          <Receipt className="w-4 h-4 text-destructive" />
+        </div>
+        <p className="text-2xl font-bold text-foreground">{formatCurrency(debtsPaid)}</p>
+      </div>
+
+      <div className="bg-card p-5 rounded-2xl border border-border shadow-(--shadow-elegant)">
+        <div className="flex items-center justify-between mb-2">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">A Receber</h3>
+          <HandCoins className="w-4 h-4 text-income" />
+        </div>
+        <p className="text-2xl font-bold text-foreground">{formatCurrency(receivables)}</p>
       </div>
     </div>
   );
