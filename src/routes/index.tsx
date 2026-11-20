@@ -13,6 +13,7 @@ import { useDebts, type DebtReceivable } from "../hooks/use-debts";
 import { DebtRow } from "../components/finance/DebtRow";
 import { MoneyInput } from "../components/ui/money-input";
 import { SummaryCards } from "../components/finance/SummaryCard";
+import { supabase } from "../integrations/supabase/client";
 
 
 export default function Dashboard() {
@@ -263,17 +264,21 @@ export default function Dashboard() {
         </div>
 
         <div className="flex items-center gap-3">
-          <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-            <User className="w-5 h-5" />
-          </Button>
-          <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-            <LogOut className="w-5 h-5" />
-          </Button>
-          <Link to="/visao-anual">
-            <Button variant="outline" className="gap-2 border-border/50 bg-card">
-              <BarChart2 className="w-4 h-4" /> Visão anual
+          <Link to="/perfil" title="Meu perfil">
+            <Button variant="ghost" className="text-muted-foreground hover:text-foreground cursor-pointer">
+              <User className="w-5 h-5" />
             </Button>
           </Link>
+          <Button
+            variant="ghost"
+            className="text-muted-foreground hover:text-foreground cursor-pointer"
+            title="Sair"
+            onClick={async () => {
+              await supabase.auth.signOut();
+            }}
+          >
+            <LogOut className="w-5 h-5" />
+          </Button>
 
           {/* Seletor de Mês */}
           <div className="flex items-center gap-1 bg-card px-2 py-1.5 rounded-full border border-border/50 ml-2">
