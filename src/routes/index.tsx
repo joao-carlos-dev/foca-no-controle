@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { ChevronLeft, ChevronRight, User, LogOut, BarChart2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
@@ -9,6 +9,11 @@ import { TransactionRow } from "../components/finance/TransactionRow";
 import { useFinance } from "../hooks/use-finance";
 import { Dialog } from "../components/ui/dialog";
 import { Input } from "../components/ui/input";
+import { useDebts, type DebtReceivable } from "../hooks/use-debts";
+import { DebtRow } from "../components/finance/DebtRow";
+import { MoneyInput } from "../components/ui/money-input";
+import { SummaryCards } from "../components/finance/SummaryCard";
+
 
 export default function Dashboard() {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -18,7 +23,7 @@ export default function Dashboard() {
   const [newCatName, setNewCatName] = useState("");
   const [newCatType, setNewCatType] = useState("expense"); // 'expense', 'investment', 'income'
   const [newCatParent, setNewCatParent] = useState(""); // Guarda o ID da categoria pai
-  
+
   const { categories, addCategory, deleteCategory, transactions, addTransaction, updateTransaction, deleteTransaction, toggleTransactionStatus } = useFinance();
 
   // Estados do Modal de Exclusão
@@ -78,6 +83,170 @@ export default function Dashboard() {
     return await deleteTransaction(id);
   };
 
+  const {
+    items: debtItems,
+    payments: debtPayments,
+    addItem: addDebtItem,
+    updateItem: updateDebtItem,
+    deleteItem: deleteDebtItem,
+    addPayment: addDebtPayment,
+    updatePayment: updateDebtPayment,
+    deletePayment: deleteDebtPayment,
+  } = useDebts();
+
+  // Modal de Criar / Editar Dívida ou Valor a Receber
+  const [isDebtModalOpen, setIsDebtModalOpen] = useState(false);
+  const [debtModalType, setDebtModalType] = useState<"debt" | "receivable">("debt");
+  const [editingDebt, setEditingDebt] = useState<DebtReceivable | null>(null);
+  const [debtName, setDebtName] = useState("");
+  const [debtAmount, setDebtAmount] = useState<number>(0);
+
+  // Modal de Excluir Dívida / Valor a Receber
+  const [debtToDelete, setDebtToDelete] = useState<DebtReceivable | null>(null);
+
+  const openNewDebtModal = (type: "debt" | "receivable") => {
+    setEditingDebt(null);
+    setDebtModalType(type);
+    setDebtName("");
+    setDebtAmount(0);
+    setIsDebtModalOpen(true);
+  };
+
+  const openEditDebtModal = (item: DebtReceivable) => {
+    setEditingDebt(item);
+    setDebtModalType(item.type);
+    setDebtName(item.name);
+    setDebtAmount(Number(item.total_amount));
+    setIsDebtModalOpen(true);
+  };
+
+  const handleSaveDebt = async () => {
+    if (!debtName.trim() || debtAmount <= 0) return;
+    if (editingDebt) {
+      await updateDebtItem(editingDebt.id, debtName, debtAmount);
+    } else {
+      await addDebtItem(debtName, debtAmount, debtModalType);
+    }
+    setIsDebtModalOpen(false);
+  };
+
+  // Filtros e Totais do Mês Selecionado
+  const currentMonthPrefix = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}`;
+  const currentMonthLabel = formatMonthYear(currentDate).split(" de ")[0].toUpperCase();
+
+  const debtsList = debtItems.filter((i) => i.type === "debt");
+  const receivablesList = debtItems.filter((i) => i.type === "receivable");
+
+  const calcRemainingTotal = (list: DebtReceivable[]) =>
+    list.reduce((acc, item) => {
+      const paid = debtPayments.filter((p) => p.debt_id === item.id).reduce((s, p) => s + Number(p.amount), 0);
+      return acc + Math.max(0, Number(item.total_amount) - paid);
+    }, 0);
+
+  const calcMonthTotal = (list: DebtReceivable[]) => {
+    const ids = new Set(list.map((i) => i.id));
+    return debtPayments
+      .filter((p) => ids.has(p.debt_id) && p.date.startsWith(currentMonthPrefix))
+      .reduce((acc, p) => acc + Number(p.amount), 0);
+  };
+
+  const summary = useMemo(() => {
+    // Filtra apenas as transações do mês selecionado no cabeçalho
+    const monthTransactions = transactions.filter((tx) =>
+      tx.date.startsWith(currentMonthPrefix)
+    );
+
+    const totalIncome = monthTransactions
+      .filter((tx) => tx.type === "income")
+      .reduce((acc, tx) => acc + Number(tx.amount), 0);
+
+    const totalExpenses = monthTransactions
+      .filter((tx) => tx.type === "expense")
+      .reduce((acc, tx) => acc + Number(tx.amount), 0);
+
+    const totalSaved = monthTransactions
+      .filter((tx) => tx.type === "investment")
+      .reduce((acc, tx) => acc + Number(tx.amount), 0);
+
+    const totalDebts = calcRemainingTotal(debtsList);
+    const paidDebtsMonth = calcMonthTotal(debtsList);
+    const totalReceivables = calcRemainingTotal(receivablesList);
+
+    const monthBalance = totalIncome - totalExpenses - totalSaved - paidDebtsMonth;
+
+    return {
+      totalIncome,
+      totalExpenses,
+      totalSaved,
+      monthBalance,
+      totalDebts,
+      paidDebtsMonth,
+      totalReceivables,
+    };
+  }, [transactions, currentMonthPrefix, debtsList, receivablesList, debtPayments]);
+
+  const CHART_COLORS = [
+    "var(--chart-1)",
+    "var(--chart-2)",
+    "var(--chart-3)",
+    "var(--chart-4)",
+    "var(--chart-5)",
+  ];
+
+  const { statusChartData, categoryChartData } = useMemo(() => {
+    const todayStr = new Date().toISOString().split("T")[0];
+
+    // Apenas gastos do mês selecionado
+    const monthExpenses = transactions.filter(
+      (tx) => tx.type === "expense" && tx.date.startsWith(currentMonthPrefix)
+    );
+
+    // 1. Dados do Status das Contas (Pago, A Vencer, Vencido)
+    let paid = 0;
+    let pending = 0;
+    let late = 0;
+
+    monthExpenses.forEach((tx) => {
+      const val = Number(tx.amount);
+      if (tx.status === "paid") {
+        paid += val;
+      } else if (tx.date < todayStr) {
+        late += val;
+      } else {
+        pending += val;
+      }
+    });
+
+    const statusData = [
+      { name: "Pago", value: paid, color: "var(--income)" },
+      { name: "A vencer", value: pending, color: "var(--warning)" },
+      { name: "Vencido", value: late, color: "var(--destructive)" },
+    ].filter((item) => item.value > 0);
+
+    // 2. Dados Por Categoria (somados e ordenados do maior para o menor)
+    const totalsByCat = new Map<string, number>();
+    monthExpenses.forEach((tx) => {
+      const current = totalsByCat.get(tx.category_id) || 0;
+      totalsByCat.set(tx.category_id, current + Number(tx.amount));
+    });
+
+    const catData = Array.from(totalsByCat.entries())
+      .map(([catId, amount]) => {
+        const cat = categories.find((c) => c.id === catId);
+        return {
+          name: cat ? cat.name : "Outros",
+          amount,
+        };
+      })
+      .sort((a, b) => b.amount - a.amount)
+      .map((item, index) => ({
+        ...item,
+        color: CHART_COLORS[index % CHART_COLORS.length],
+      }));
+
+    return { statusChartData: statusData, categoryChartData: catData };
+  }, [transactions, categories, currentMonthPrefix]);
+
   return (
     <div className="min-h-screen flex flex-col animate-in fade-in duration-500 pb-20">
 
@@ -107,29 +276,47 @@ export default function Dashboard() {
           </Link>
 
           {/* Seletor de Mês */}
-          <div className="flex items-center gap-2 bg-card px-2 py-1.5 rounded-xl border border-border/50 ml-2">
-            <Button variant="ghost" onClick={prevMonth} className="h-7 w-7 text-muted-foreground hover:text-foreground">
+          <div className="flex items-center gap-1 bg-card px-2 py-1.5 rounded-full border border-border/50 ml-2">
+            <button
+              type="button"
+              onClick={prevMonth}
+              className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors cursor-pointer shrink-0"
+              title="Mês anterior"
+            >
               <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <div className="flex flex-col items-center justify-center min-w-25">
-              <span className="text-xs font-medium text-foreground capitalize leading-tight">
+            </button>
+
+            <div className="flex flex-col items-center justify-center min-w-24 px-1 select-none">
+              <span className="text-xs font-bold text-foreground capitalize leading-tight">
                 {formatMonthYear(currentDate).split(" de ")[0]}
               </span>
-              <span className="text-[10px] text-muted-foreground leading-none">
+              <span className="text-[10px] text-muted-foreground leading-none mt-0.5">
                 {currentDate.getFullYear()}
               </span>
             </div>
-            <Button variant="ghost" onClick={nextMonth} className="h-7 w-7 text-muted-foreground hover:text-foreground">
+
+            <button
+              type="button"
+              onClick={nextMonth}
+              className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-accent/30 transition-colors cursor-pointer shrink-0"
+              title="Próximo mês"
+            >
               <ChevronRight className="w-4 h-4" />
-            </Button>
+            </button>
           </div>
         </div>
       </header>
 
       <main className="p-6 space-y-6">
 
-        {/* Gráficos Recharts */}
-        <DashboardCharts />
+        {/* Cartões de Resumo */}
+        <SummaryCards {...summary} />
+
+        {/* Gráficos */}
+        <DashboardCharts
+          statusData={statusChartData}
+          categoryData={categoryChartData}
+        />
 
         <div className="space-y-8">
 
@@ -141,7 +328,9 @@ export default function Dashboard() {
                 <p className="text-xs text-muted-foreground">Nenhuma receita criada.</p>
               ) : (
                 categories.filter(cat => cat.type === 'income').map((cat) => {
-                  const catTransactions = transactions.filter(tx => tx.category_id === cat.id);
+                  const catTransactions = transactions.filter(
+                    tx => tx.category_id === cat.id && tx.date.startsWith(currentMonthPrefix)
+                  );
                   const catTotal = catTransactions.reduce((acc, curr) => acc + Number(curr.amount), 0);
 
                   return (
@@ -281,7 +470,9 @@ export default function Dashboard() {
                 </div>
               ) : (
                 categories.filter(cat => cat.type === 'expense' || !cat.type).map((cat) => {
-                  const catTransactions = transactions.filter(tx => tx.category_id === cat.id);
+                  const catTransactions = transactions.filter(
+                    tx => tx.category_id === cat.id && tx.date.startsWith(currentMonthPrefix)
+                  );
                   const catTotal = catTransactions.reduce((acc, curr) => acc + Number(curr.amount), 0);
 
                   return (
@@ -316,7 +507,9 @@ export default function Dashboard() {
             <p className="text-xs text-muted-foreground">Nenhum investimento criado.</p>
           ) : (
             categories.filter(cat => cat.type === 'investment').map((cat) => {
-              const catTransactions = transactions.filter(tx => tx.category_id === cat.id);
+              const catTransactions = transactions.filter(
+                tx => tx.category_id === cat.id && tx.date.startsWith(currentMonthPrefix)
+              );
               const catTotal = catTransactions.reduce((acc, curr) => acc + Number(curr.amount), 0);
 
               return (
@@ -346,7 +539,11 @@ export default function Dashboard() {
       <section className="px-6 mb-8">
         <div className="flex items-center justify-between mb-4 p-2">
           <h2 className="text-sm font-bold uppercase tracking-wider text-warning">Dívidas</h2>
-          <Button variant="outline" className="gap-2 h-8 border-border/50 text-xs rounded-full cursor-pointer hover:bg-accent/50">
+          <Button
+            variant="outline"
+            className="gap-2 h-8 border-border/50 text-xs rounded-full cursor-pointer hover:bg-accent/50"
+            onClick={() => openNewDebtModal("debt")}
+          >
             + Nova dívida
           </Button>
         </div>
@@ -354,17 +551,13 @@ export default function Dashboard() {
         <div className="bg-card/30 rounded-4xl border border-border/50 p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div className="bg-warning/10 rounded-xl p-4 flex justify-between items-center border border-warning/20">
-              <div className="flex items-center gap-2 text-warning font-semibold text-xs uppercase tracking-wider">
-                TOTAL DAS DÍVIDAS
-              </div>
-              <span className="font-bold text-foreground">{formatCurrency(7249.51)}</span>
+              <span className="text-warning font-semibold text-xs uppercase tracking-wider">TOTAL DAS DÍVIDAS</span>
+              <span className="font-bold text-foreground">{formatCurrency(calcRemainingTotal(debtsList))}</span>
             </div>
 
             <div className="bg-destructive/10 rounded-xl p-4 flex justify-between items-center border border-destructive/20">
-              <div className="flex items-center gap-2 text-destructive font-semibold text-xs uppercase tracking-wider">
-                PAGO EM NOVEMBRO
-              </div>
-              <span className="font-bold text-foreground">{formatCurrency(444.90)}</span>
+              <span className="text-destructive font-semibold text-xs uppercase tracking-wider">PAGO EM {currentMonthLabel}</span>
+              <span className="font-bold text-foreground">{formatCurrency(calcMonthTotal(debtsList))}</span>
             </div>
           </div>
 
@@ -373,30 +566,27 @@ export default function Dashboard() {
           </p>
 
           <div className="space-y-2">
-            {[
-              { name: "Mãe", amount: 4901.00 },
-              { name: "Eduardo", amount: 139.00 },
-              { name: "Diegos", amount: 76.00 },
-            ].map((debt, i) => (
-              <div key={i} className="flex justify-between items-center p-3 px-4 rounded-xl hover:bg-accent/20 cursor-pointer transition-colors border border-border/50 bg-background/50">
-                <div className="flex items-center gap-3">
-                  <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-semibold text-sm">{debt.name}</span>
-                </div>
-                <span className="font-bold text-sm">{formatCurrency(debt.amount)}</span>
-              </div>
-            ))}
-
-            <div className="flex justify-between items-center p-3 px-4 rounded-xl hover:bg-accent/20 cursor-pointer transition-colors border border-border/50 bg-background/50">
-              <div className="flex items-center gap-3">
-                <ChevronRight className="w-4 h-4 text-muted-foreground" />
-                <span className="font-semibold text-sm">Empréstimo (Itau)</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-xs text-destructive bg-destructive/10 px-2 py-1 rounded-md">1 pagamento</span>
-                <span className="font-bold text-sm">{formatCurrency(1144.43)}</span>
-              </div>
-            </div>
+            {debtsList.length === 0 ? (
+              <div className="text-center py-6 text-sm text-muted-foreground">Nenhuma dívida cadastrada.</div>
+            ) : (
+              debtsList.map((item) => {
+                const itemPayments = debtPayments.filter((p) => p.debt_id === item.id);
+                const monthCount = itemPayments.filter((p) => p.date.startsWith(currentMonthPrefix)).length;
+                return (
+                  <DebtRow
+                    key={item.id}
+                    item={item}
+                    payments={itemPayments}
+                    currentMonthPaymentsCount={monthCount}
+                    onEditItem={openEditDebtModal}
+                    onDeleteItem={setDebtToDelete}
+                    onAddPayment={addDebtPayment}
+                    onUpdatePayment={updateDebtPayment}
+                    onDeletePayment={deleteDebtPayment}
+                  />
+                );
+              })
+            )}
           </div>
         </div>
       </section>
@@ -405,7 +595,11 @@ export default function Dashboard() {
       <section className="px-6">
         <div className="flex items-center justify-between mb-4 p-2">
           <h2 className="text-sm font-bold uppercase tracking-wider text-income">Dinheiro a Receber</h2>
-          <Button variant="outline" className="gap-2 h-8 border-border/50 text-xs rounded-full cursor-pointer hover:bg-accent/50">
+          <Button
+            variant="outline"
+            className="gap-2 h-8 border-border/50 text-xs rounded-full cursor-pointer hover:bg-accent/50"
+            onClick={() => openNewDebtModal("receivable")}
+          >
             + Novo valor a receber
           </Button>
         </div>
@@ -413,29 +607,109 @@ export default function Dashboard() {
         <div className="bg-card/30 rounded-4xl border border-border/50 p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
             <div className="bg-income/10 rounded-xl p-4 flex justify-between items-center border border-income/20">
-              <div className="flex items-center gap-2 text-income font-semibold text-xs uppercase tracking-wider">
-                TOTAL A RECEBER
-              </div>
-              <span className="font-bold text-foreground">{formatCurrency(0)}</span>
+              <span className="text-income font-semibold text-xs uppercase tracking-wider">TOTAL A RECEBER</span>
+              <span className="font-bold text-foreground">{formatCurrency(calcRemainingTotal(receivablesList))}</span>
             </div>
 
             <div className="bg-income/5 rounded-xl p-4 flex justify-between items-center border border-income/10 opacity-70">
-              <div className="flex items-center gap-2 text-income font-semibold text-xs uppercase tracking-wider">
-                RECEBIDO EM NOVEMBRO
-              </div>
-              <span className="font-bold text-foreground">{formatCurrency(0)}</span>
+              <span className="text-income font-semibold text-xs uppercase tracking-wider">RECEBIDO EM {currentMonthLabel}</span>
+              <span className="font-bold text-foreground">{formatCurrency(calcMonthTotal(receivablesList))}</span>
             </div>
           </div>
 
-          <p className="text-xs text-muted-foreground px-2 mb-8">
+          <p className="text-xs text-muted-foreground px-2 mb-4">
             Esta secção é apenas um controle do dinheiro emprestado. Nenhum valor aqui entra na receita ou nos gastos do mês, nem no saldo.
           </p>
 
-          <div className="text-center py-6 text-sm text-muted-foreground">
-            Nenhum valor a receber cadastrado.
+          <div className="space-y-2">
+            {receivablesList.length === 0 ? (
+              <div className="text-center py-6 text-sm text-muted-foreground">Nenhum valor a receber cadastrado.</div>
+            ) : (
+              receivablesList.map((item) => {
+                const itemPayments = debtPayments.filter((p) => p.debt_id === item.id);
+                const monthCount = itemPayments.filter((p) => p.date.startsWith(currentMonthPrefix)).length;
+                return (
+                  <DebtRow
+                    key={item.id}
+                    item={item}
+                    payments={itemPayments}
+                    currentMonthPaymentsCount={monthCount}
+                    onEditItem={openEditDebtModal}
+                    onDeleteItem={setDebtToDelete}
+                    onAddPayment={addDebtPayment}
+                    onUpdatePayment={updateDebtPayment}
+                    onDeletePayment={deleteDebtPayment}
+                  />
+                );
+              })
+            )}
           </div>
         </div>
       </section>
+
+      {/* Modal: Criar / Editar Dívida ou Valor a Receber */}
+      <Dialog
+        isOpen={isDebtModalOpen}
+        onClose={() => setIsDebtModalOpen(false)}
+        title={
+          editingDebt
+            ? debtModalType === "debt" ? "Editar Dívida" : "Editar Valor a Receber"
+            : debtModalType === "debt" ? "Nova Dívida" : "Novo Valor a Receber"
+        }
+      >
+        <div className="space-y-4 mt-2">
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Descrição / Pessoa</label>
+            <Input
+              placeholder={debtModalType === "debt" ? "Ex: Empréstimo Itaú" : "Ex: Empréstimo para João"}
+              value={debtName}
+              onChange={(e) => setDebtName(e.target.value)}
+              className="bg-background"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-sm font-medium text-foreground">Valor Total</label>
+            <MoneyInput value={debtAmount} onChange={setDebtAmount} />
+          </div>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="ghost" onClick={() => setIsDebtModalOpen(false)} className="cursor-pointer">
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveDebt} className="cursor-pointer px-6 rounded-xl">
+              {editingDebt ? "Salvar" : "Adicionar"}
+            </Button>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Modal: Confirmar Exclusão de Dívida / Valor a Receber */}
+      <Dialog
+        isOpen={!!debtToDelete}
+        onClose={() => setDebtToDelete(null)}
+        title="Confirmar Exclusão"
+      >
+        <div className="space-y-5 mt-2">
+          <p className="text-sm text-muted-foreground">
+            Tem a certeza que deseja excluir <strong className="text-foreground">"{debtToDelete?.name}"</strong> e todos os seus lançamentos?
+          </p>
+          <div className="flex justify-end gap-3 pt-4">
+            <Button variant="ghost" onClick={() => setDebtToDelete(null)} className="cursor-pointer">
+              Cancelar
+            </Button>
+            <Button
+              className="cursor-pointer px-6 rounded-xl bg-destructive hover:bg-destructive/90 text-destructive-foreground border-none"
+              onClick={async () => {
+                if (debtToDelete) {
+                  await deleteDebtItem(debtToDelete.id);
+                  setDebtToDelete(null);
+                }
+              }}
+            >
+              Excluir
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }
