@@ -15,6 +15,7 @@ import { MoneyInput } from "../components/ui/money-input";
 import { SummaryCards } from "../components/finance/SummaryCard";
 import { supabase } from "../integrations/supabase/client";
 import { useTheme } from "../hooks/use-theme";
+import logo from "../assets/logo_foca.png";
 
 
 export default function Dashboard() {
@@ -265,8 +266,8 @@ export default function Dashboard() {
       {/* 1. TOP BAR (Cabeçalho) */}
       <header className="flex flex-col md:flex-row items-center justify-between gap-4 p-6 border-b border-border/50">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary font-bold text-xl">
-            F
+          <div className="w-10 h-10 rounded-full flex items-center justify-center">
+            <img src={logo}/>
           </div>
           <div>
             <h1 className="text-xl font-bold text-foreground leading-tight">Foca no Controle</h1>
