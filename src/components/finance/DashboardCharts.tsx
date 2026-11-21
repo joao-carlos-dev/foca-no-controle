@@ -157,7 +157,7 @@ export function DashboardCharts({ statusData, categoryData }: DashboardChartsPro
                 />
                 <Tooltip
                   cursor={{ fill: "var(--accent)", opacity: 0.15 }}
-                  formatter={(value) => [formatCurrency(Number (value || 0)), "Gasto"]}
+                  formatter={(value) => [formatCurrency(Number(value || 0)), "Gasto"]}
                   contentStyle={{
                     backgroundColor: "var(--card)",
                     borderColor: "var(--border)",
@@ -165,6 +165,8 @@ export function DashboardCharts({ statusData, categoryData }: DashboardChartsPro
                     fontSize: "12px",
                     color: "var(--foreground)",
                   }}
+                  labelStyle={{ color: "var(--foreground)", fontWeight: 600, marginBottom: "4px" }}
+                  itemStyle={{ color: "var(--primary)" }}
                 />
                 <Bar dataKey="amount" radius={[8, 8, 0, 0]} maxBarSize={48}>
                   {categoryData.map((entry, index) => (

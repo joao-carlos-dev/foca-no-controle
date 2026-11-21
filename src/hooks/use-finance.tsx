@@ -9,6 +9,7 @@ export interface Category {
   icon: string;
   type?: string;
   parent_id?: string | null;
+  is_fixed?: boolean;
 }
 
 export interface Transaction {
@@ -30,21 +31,34 @@ export function useFinance() {
   useEffect(() => {
     if (!user) return;
 
-    const fetchCategories = async () => {
-      const { data, error } = await supabase
-        .from("categories")
-        .select("*")
-        .order("created_at", { ascending: true });
+    const fetchFinanceData = async () => {
+      const [catRes, txRes] = await Promise.all([
+        supabase
+          .from("categories")
+          .select("*")
+          .order("created_at", { ascending: true }),
+        supabase
+          .from("transactions")
+          .select("*")
+          .order("date", { ascending: true }),
+      ]);
 
-      if (error) {
-        console.error("Erro ao carregar categorias:", error);
+      if (catRes.error) {
+        console.error("Erro ao carregar categorias:", catRes.error);
       } else {
-        setCategories(data || []);
+        setCategories(catRes.data || []);
       }
+
+      if (txRes.error) {
+        console.error("Erro ao carregar transações:", txRes.error);
+      } else {
+        setTransactions(txRes.data || []);
+      }
+
       setLoading(false);
     };
 
-    fetchCategories();
+    fetchFinanceData();
   }, [user]);
 
   //função para adicionar Transação
@@ -191,6 +205,72 @@ export function useFinance() {
     return true;
   };
 
+  // Fixar ou desfixar uma categoria
+  const toggleCategoryFixed = async (id: string, currentFixed: boolean) => {
+    if (!user) return false;
+
+    const { data, error } = await supabase
+      .from("categories")
+      .update({ is_fixed: !currentFixed })
+      .eq("id", id)
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Erro ao fixar categoria:", error);
+      return false;
+    }
+
+    setCategories((prev) => prev.map((cat) => (cat.id === id ? data : cat)));
+    return true;
+  };
+
+  // Replica automaticamente gastos de categorias fixas para o mês selecionado
+  const syncFixedExpenses = async (targetDate: Date, syncedKeys: Set<string>) => {
+    if (!user || loading) return;
+
+    const year = targetDate.getFullYear();
+    const month = targetDate.getMonth() + 1;
+    const monthPrefix = `${year}-${String(month).padStart(2, "0")}`;
+    const lastDayOfMonth = new Date(year, month, 0).getDate();
+
+    const fixedCategories = categories.filter((cat) => cat.is_fixed);
+
+    for (const cat of fixedCategories) {
+      const syncKey = `${cat.id}-${monthPrefix}`;
+      if (syncedKeys.has(syncKey)) continue;
+      syncedKeys.add(syncKey);
+
+      // Verifica se já existe lançamento desta categoria no mês selecionado
+      const hasInMonth = transactions.some(
+        (tx) => tx.category_id === cat.id && tx.date.startsWith(monthPrefix)
+      );
+      if (hasInMonth) continue;
+
+      // Busca o lançamento mais recente anterior ao mês selecionado
+      const previousTxs = transactions
+        .filter((tx) => tx.category_id === cat.id && tx.date < `${monthPrefix}-01`)
+        .sort((a, b) => b.date.localeCompare(a.date));
+
+      if (previousTxs.length === 0) continue;
+
+      const lastTx = previousTxs[0];
+      const originalDay = Number(lastTx.date.split("-")[2]) || 1;
+      const safeDay = Math.min(originalDay, lastDayOfMonth);
+      const newDate = `${monthPrefix}-${String(safeDay).padStart(2, "0")}`;
+
+      await addTransaction(
+        cat.id,
+        lastTx.description,
+        Number(lastTx.amount),
+        newDate,
+        cat.type || "expense"
+      );
+    }
+  };
+
+
+
   return {
     categories,
     transactions, // Exportar
@@ -200,6 +280,8 @@ export function useFinance() {
     addTransaction, // Exportar
     updateTransaction,
     deleteTransaction,
-    toggleTransactionStatus
+    toggleTransactionStatus,
+    toggleCategoryFixed,
+    syncFixedExpenses
   };
 }

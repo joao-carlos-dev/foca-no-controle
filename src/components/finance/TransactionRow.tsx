@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { 
-  ChevronRight, ChevronDown, Pin, Trash2, Pencil, Calendar, CheckCircle2,
+  ChevronRight, ChevronDown, Pin, PinOff, Trash2, Pencil, Calendar, CheckCircle2,
   Briefcase, Bus, Smartphone, Globe, GraduationCap, Car, Shield, Check, X 
 } from "lucide-react";
 import { formatCurrency } from "../../lib/format";
@@ -35,6 +35,7 @@ interface TransactionRowProps {
   onDeleteTransaction?: (id: string) => Promise<boolean>;
   onToggleStatus?: (id: string, currentStatus: string) => Promise<boolean>;
   transactions?: any[];
+  onToggleFixed?: () => void;
 }
 
 // Formata "2026-11-10" para "10/11"
@@ -46,7 +47,7 @@ function formatDayMonth(dateStr: string) {
 
 export function TransactionRow({
   id, title, amount, color, iconName, type, isFixed, amountColor, 
-  onDelete, onAddTransaction, onUpdateTransaction, onDeleteTransaction, onToggleStatus, transactions = []
+  onDelete, onAddTransaction, onUpdateTransaction, onDeleteTransaction, onToggleStatus, onToggleFixed, transactions = []
 }: TransactionRowProps) {
   const Icon = iconMap[iconName] || Briefcase;
   
@@ -175,9 +176,33 @@ export function TransactionRow({
           </span>
 
           <div className="flex items-center gap-3 border-l border-border/50 pl-3">
-            <button 
-              className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer" 
-              onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
+            {/* Botão 1: Fixar (Pin) */}
+            <button
+              type="button"
+              className={cn(
+                "transition-colors cursor-pointer",
+                isFixed
+                  ? "text-primary hover:text-primary/80"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              title={isFixed ? "Remover gasto fixo" : "Fixar gasto recorrente"}
+              onClick={(e) => {
+                e.stopPropagation();
+                onToggleFixed?.();
+              }}
+            >
+              {isFixed ? <Pin className="w-4 h-4" /> : <PinOff className="w-4 h-4" />}
+            </button>
+
+            {/* Botão 2: Excluir (Lixeira) */}
+            <button
+              type="button"
+              className="text-muted-foreground hover:text-destructive transition-colors cursor-pointer"
+              title="Excluir categoria"
+              onClick={(e) => {
+                e.stopPropagation();
+                onDelete?.();
+              }}
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -226,31 +251,34 @@ export function TransactionRow({
                 /* VISUALIZAÇÃO PADRÃO DO LANÇAMENTO */
                 <div key={tx.id} className="flex flex-wrap items-center justify-between p-3 rounded-xl bg-background/50 border border-border/50 gap-2">
                   <div className="flex items-center gap-3 flex-wrap">
-                    <button
-                      onClick={() => onToggleStatus?.(tx.id, tx.status)}
-                      className={cn(
-                        "px-3 py-1 rounded-full text-xs font-semibold border transition-colors cursor-pointer",
-                        isPaid 
-                          ? "bg-income/20 text-income border-income/30" 
-                          : "bg-accent/20 text-foreground border-border/50 hover:bg-accent/40"
-                      )}
-                      title={isPaid ? "Clique para marcar como pendente" : "Clique para marcar como pago"}
-                    >
-                      {isPaid ? "Pago ✓" : "Paguei"}
-                    </button>
+                    {/* Botão Paguei/Pago apenas para Gastos */}
+                    {type === "expense" && (
+                      <button
+                        onClick={() => onToggleStatus?.(tx.id, tx.status)}
+                        className={cn(
+                          "px-3 py-1 rounded-full text-xs font-semibold border transition-colors cursor-pointer",
+                          isPaid
+                            ? "bg-income/20 text-income border-income/30"
+                            : "bg-accent/20 text-foreground border-border/50 hover:bg-accent/40"
+                        )}
+                        title={isPaid ? "Clique para marcar como pendente" : "Clique para marcar como pago"}
+                      >
+                        {isPaid ? "Pago ✓" : "Paguei"}
+                      </button>
+                    )}
 
                     <span className="font-bold text-sm">{formatCurrency(tx.amount)}</span>
-                    
+
                     <div className="flex items-center gap-1.5">
-                      <button 
-                        onClick={() => startEdit(tx)} 
+                      <button
+                        onClick={() => startEdit(tx)}
                         className="text-muted-foreground hover:text-foreground transition-colors cursor-pointer p-1"
                         title="Editar lançamento"
                       >
                         <Pencil className="w-3.5 h-3.5" />
                       </button>
-                      <button 
-                        onClick={() => onDeleteTransaction?.(tx.id)} 
+                      <button
+                        onClick={() => onDeleteTransaction?.(tx.id)}
                         className="text-destructive/80 hover:text-destructive transition-colors cursor-pointer p-1"
                         title="Excluir lançamento"
                       >
@@ -258,14 +286,21 @@ export function TransactionRow({
                       </button>
                     </div>
 
-                    {/* Data de vencimento na linha do lançamento */}
-                    <span className={cn(
-                      "flex items-center gap-1 text-xs font-medium",
-                      isPaid ? "text-income" : isLate ? "text-destructive" : "text-warning"
-                    )}>
-                      <Calendar className="w-3.5 h-3.5" />
-                      {isPaid ? `Pago (${dm})` : isLate ? `Vence ${dm} • atrasada` : `Vence ${dm}`}
-                    </span>
+                    {/* Data: com status de vencimento apenas para Gastos */}
+                    {type === "expense" ? (
+                      <span className={cn(
+                        "flex items-center gap-1 text-xs font-medium",
+                        isPaid ? "text-income" : isLate ? "text-destructive" : "text-warning"
+                      )}>
+                        <Calendar className="w-3.5 h-3.5" />
+                        {isPaid ? `Pago (${dm})` : isLate ? `Vence ${dm} • atrasada` : `Vence ${dm}`}
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="w-3.5 h-3.5" />
+                        {dm}
+                      </span>
+                    )}
 
                     {tx.description && tx.description !== "Lançamento" && (
                       <span className="text-xs text-muted-foreground">• {tx.description}</span>

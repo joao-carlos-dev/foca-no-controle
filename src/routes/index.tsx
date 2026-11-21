@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { ChevronLeft, ChevronRight, User, LogOut, BarChart2 } from "lucide-react";
+import { useState, useMemo, useEffect, useRef } from "react";
+import { ChevronLeft, ChevronRight, User, LogOut, BarChart2, Sun, Moon } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "../components/ui/button";
 /*import { SummaryCards } from "../components/finance/SummaryCard";*/
@@ -14,9 +14,11 @@ import { DebtRow } from "../components/finance/DebtRow";
 import { MoneyInput } from "../components/ui/money-input";
 import { SummaryCards } from "../components/finance/SummaryCard";
 import { supabase } from "../integrations/supabase/client";
+import { useTheme } from "../hooks/use-theme";
 
 
 export default function Dashboard() {
+  const { theme, toggleTheme } = useTheme();
   const [currentDate, setCurrentDate] = useState(new Date());
 
   // Estados dos Modais
@@ -25,7 +27,7 @@ export default function Dashboard() {
   const [newCatType, setNewCatType] = useState("expense"); // 'expense', 'investment', 'income'
   const [newCatParent, setNewCatParent] = useState(""); // Guarda o ID da categoria pai
 
-  const { categories, addCategory, deleteCategory, transactions, addTransaction, updateTransaction, deleteTransaction, toggleTransactionStatus } = useFinance();
+  const { categories, addCategory, deleteCategory, transactions, addTransaction, updateTransaction, deleteTransaction, toggleTransactionStatus, toggleCategoryFixed, syncFixedExpenses, loadingCategories } = useFinance();
 
   // Estados do Modal de Exclusão
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
@@ -248,6 +250,15 @@ export default function Dashboard() {
     return { statusChartData: statusData, categoryChartData: catData };
   }, [transactions, categories, currentMonthPrefix]);
 
+  // Evita duplicar lançamentos ou recriar um gasto que você acabou de apagar no mês
+  const syncedMonthsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!loadingCategories) {
+      syncFixedExpenses(currentDate, syncedMonthsRef.current);
+    }
+  }, [currentDate, loadingCategories, categories]);
+
   return (
     <div className="min-h-screen flex flex-col animate-in fade-in duration-500 pb-20">
 
@@ -279,6 +290,21 @@ export default function Dashboard() {
           >
             <LogOut className="w-5 h-5" />
           </Button>
+
+          <Button
+            variant="ghost"
+            onClick={toggleTheme}
+            className="text-muted-foreground hover:text-foreground cursor-pointer"
+            title={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
+          >
+            {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </Button>
+
+          <Link to="/visao-anual">
+            <Button variant="outline" className="gap-2 border-border/50 bg-card rounded-full cursor-pointer">
+              <BarChart2 className="w-4 h-4" /> Visão anual
+            </Button>
+          </Link>
 
           {/* Seletor de Mês */}
           <div className="flex items-center gap-1 bg-card px-2 py-1.5 rounded-full border border-border/50 ml-2">
@@ -343,7 +369,7 @@ export default function Dashboard() {
                       key={cat.id}
                       id={cat.id}
                       title={cat.name}
-                      type="income"
+                      type={cat.type || 'expense'}
                       amount={catTotal}
                       color="var(--income)"
                       amountColor="var(--income)"
@@ -354,6 +380,8 @@ export default function Dashboard() {
                       onUpdateTransaction={handleUpdateTransaction}
                       onDeleteTransaction={handleDeleteTransaction}
                       onToggleStatus={toggleTransactionStatus}
+                      isFixed={cat.is_fixed}
+                      onToggleFixed={() => toggleCategoryFixed(cat.id, !!cat.is_fixed)}
                     />
                   );
                 })
@@ -487,7 +515,8 @@ export default function Dashboard() {
                       title={cat.name}
                       type={cat.type || 'expense'}
                       amount={catTotal}
-                      color={cat.color}
+                      color="var(--income)"
+                      amountColor="var(--income)"
                       iconName={cat.icon}
                       transactions={catTransactions}
                       onDelete={() => handleDeleteCategory(cat.id, cat.name)}
@@ -495,6 +524,8 @@ export default function Dashboard() {
                       onUpdateTransaction={handleUpdateTransaction}
                       onDeleteTransaction={handleDeleteTransaction}
                       onToggleStatus={toggleTransactionStatus}
+                      isFixed={cat.is_fixed}
+                      onToggleFixed={() => toggleCategoryFixed(cat.id, !!cat.is_fixed)}
                     />
                   );
                 })
@@ -522,10 +553,10 @@ export default function Dashboard() {
                   key={cat.id}
                   id={cat.id}
                   title={cat.name}
-                  type="investment"
+                  type={cat.type || 'expense'}
                   amount={catTotal}
-                  color="#38bdf8"
-                  amountColor="#38bdf8"
+                  color="var(--income)"
+                  amountColor="var(--income)"
                   iconName={cat.icon}
                   transactions={catTransactions}
                   onDelete={() => handleDeleteCategory(cat.id, cat.name)}
@@ -533,6 +564,8 @@ export default function Dashboard() {
                   onUpdateTransaction={handleUpdateTransaction}
                   onDeleteTransaction={handleDeleteTransaction}
                   onToggleStatus={toggleTransactionStatus}
+                  isFixed={cat.is_fixed}
+                  onToggleFixed={() => toggleCategoryFixed(cat.id, !!cat.is_fixed)}
                 />
               );
             })

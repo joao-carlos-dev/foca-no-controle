@@ -38,51 +38,102 @@
 }
 
 :root {
-  /* User-selected Pantone palette; financial statuses retain semantic colors. */
-  --anthracite: oklch(0.2799 0.0092 294.97);
-  --volcanic-glass: oklch(0.4795 0.0119 335.73);
-  --deep-taupe: oklch(0.5257 0.0318 29.18);
-  --plaza-taupe: oklch(0.7180 0.0266 75.18);
+  /* MODO CLARO: Bege claro, detalhes em preto e dourado */
   --radius: 0.875rem;
-  --background: var(--anthracite);
-  --foreground: oklch(0.96 0.008 75);
-  --card: oklch(0.32 0.01 335);
-  --card-foreground: var(--foreground);
-  --popover: oklch(0.34 0.011 335);
-  --popover-foreground: var(--foreground);
-  --primary: var(--plaza-taupe);
-  --primary-foreground: var(--anthracite);
-  --primary-glow: oklch(0.8 0.025 75);
-  --secondary: var(--volcanic-glass);
-  --secondary-foreground: var(--foreground);
-  --muted: oklch(0.38 0.012 335);
-  --muted-foreground: oklch(0.77 0.016 75);
-  --accent: var(--deep-taupe);
-  --accent-foreground: var(--foreground);
-  --destructive: oklch(0.65 0.22 22);
-  --destructive-foreground: oklch(0.98 0.01 255);
-  --border: var(--volcanic-glass);
-  --input: oklch(0.42 0.012 335);
-  --ring: var(--plaza-taupe);
-  --savings: oklch(0.72 0.16 220);
-  --savings-foreground: oklch(0.18 0.02 260);
-  --income: oklch(0.8 0.18 145);
-  --income-foreground: oklch(0.18 0.02 260);
-  --warning: oklch(0.78 0.17 75);
-  --gradient-primary: linear-gradient(135deg, var(--plaza-taupe), var(--deep-taupe));
-  --gradient-card: linear-gradient(160deg, var(--card), var(--anthracite));
-  --gradient-glow: linear-gradient(160deg, color-mix(in oklch, var(--deep-taupe) 12%, transparent), transparent 60%);
-  --shadow-elegant: 0 10px 40px -12px oklch(0 0 0 / 0.5);
-  --shadow-glow: 0 0 40px color-mix(in oklch, var(--plaza-taupe) 20%, transparent);
-  --chart-1: var(--plaza-taupe);
-  --chart-2: oklch(0.66 0.04 29);
-  --chart-3: oklch(0.65 0.015 335);
-  --chart-4: oklch(0.85 0.025 75);
-  --chart-5: var(--deep-taupe);
-  --chart-6: oklch(0.76 0.035 29);
-  --chart-7: var(--volcanic-glass);
-  --chart-8: oklch(0.58 0.03 75);
+  --background: #f5f0e6;
+  --foreground: #141414;
+  --card: #fdfbf7;
+  --card-foreground: #141414;
+  --popover: #fdfbf7;
+  --popover-foreground: #141414;
+  --primary: #b88917;
+  --primary-foreground: #ffffff;
+  --primary-glow: #d4af37;
+  --secondary: #e6dcc8;
+  --secondary-foreground: #141414;
+  --muted: #eae2d3;
+  --muted-foreground: #5c5549;
+  --accent: #e6dcc8;
+  --accent-foreground: #141414;
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --border: #dfd6c5;
+  --input: #dfd6c5;
+  --ring: #b88917;
+
+  /* Cores semânticas financeiras */
+  --savings: #0284c7;
+  --savings-foreground: #ffffff;
+  --income: #16a34a;
+  --income-foreground: #ffffff;
+  --warning: #d97706;
+
+  /* Gradientes e Sombras */
+  --gradient-primary: linear-gradient(135deg, #d4af37, #b88917);
+  --gradient-card: linear-gradient(160deg, var(--card), var(--background));
+  --gradient-glow: linear-gradient(160deg, color-mix(in srgb, #b88917 10%, transparent), transparent 60%);
+  --shadow-elegant: 0 10px 40px -12px rgb(0 0 0 / 0.12);
+  --shadow-glow: 0 0 40px color-mix(in srgb, #b88917 18%, transparent);
+
+  /* Paleta dos gráficos */
+  --chart-1: #b88917;
+  --chart-2: #141414;
+  --chart-3: #8c6d23;
+  --chart-4: #5c5549;
+  --chart-5: #d4af37;
+  --chart-6: #3b352c;
+  --chart-7: #a38642;
+  --chart-8: #786f60;
 }
+
+.dark {
+  /* MODO ESCURO: Preto, detalhes em dourado e branco */
+  --background: #0a0a0a;
+  --foreground: #fafafa;
+  --card: #141414;
+  --card-foreground: #fafafa;
+  --popover: #1a1814;
+  --popover-foreground: #fafafa;
+  --primary: #d4af37;
+  --primary-foreground: #0a0a0a;
+  --primary-glow: #e6c86e;
+  --secondary: #242018;
+  --secondary-foreground: #fafafa;
+  --muted: #1c1a17;
+  --muted-foreground: #a39e93;
+  --accent: #242018;
+  --accent-foreground: #fafafa;
+  --destructive: #ef4444;
+  --destructive-foreground: #ffffff;
+  --border: #26231d;
+  --input: #26231d;
+  --ring: #d4af37;
+
+  /* Cores semânticas financeiras */
+  --savings: #38bdf8;
+  --savings-foreground: #0a0a0a;
+  --income: #22c55e;
+  --income-foreground: #0a0a0a;
+  --warning: #f59e0b;
+
+  /* Gradientes e Sombras */
+  --gradient-primary: linear-gradient(135deg, #e6c86e, #b88917);
+  --gradient-card: linear-gradient(160deg, var(--card), var(--background));
+  --gradient-glow: linear-gradient(160deg, color-mix(in srgb, #d4af37 8%, transparent), transparent 60%);
+  --shadow-elegant: 0 10px 40px -12px rgb(0 0 0 / 0.6);
+  --shadow-glow: 0 0 40px color-mix(in srgb, #d4af37 20%, transparent);
+
+  /* Paleta dos gráficos */
+  --chart-1: #d4af37;
+  --chart-2: #f5f0e6;
+  --chart-3: #a68523;
+  --chart-4: #736b5e;
+  --chart-5: #e6c86e;
+  --chart-6: #c4b59b;
+  --chart-7: #8a7335;
+  --chart-8: #524c42;
+}
+
 
 @layer base {
   * {
